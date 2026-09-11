@@ -48,11 +48,8 @@ export function ProductCard({ product }: { product: Product }) {
             {product.name}
           </h3>
         </Link>
-        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-auto line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {product.shortDescription}
-        </p>
-        <p className="mt-auto pt-2 text-sm font-medium text-accent">
-          {product.priceIndication}
         </p>
       </CardContent>
 

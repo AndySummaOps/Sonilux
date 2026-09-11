@@ -1,8 +1,13 @@
-import { products } from "@/lib/data"
+"use client"
+
+import { useProducts } from "@/lib/use-products"
 import { ProductCard } from "@/components/product-card"
 
 export function FeaturedProducts() {
+  const { products } = useProducts()
   const featured = products.filter((p) => p.available).slice(0, 6)
+
+  if (featured.length === 0) return null
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:px-8">

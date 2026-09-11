@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Herbouwt de site elke 6 uur, zodat nieuwe producten uit het admin-scherm
+    # ook hun eigen productpagina (/producten/<slug>/) krijgen.
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: read

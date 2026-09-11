@@ -5,17 +5,19 @@ import { useSearchParams } from "next/navigation"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/product-card"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { categories, products } from "@/lib/data"
+import { categories } from "@/lib/data"
+import { useProducts } from "@/lib/use-products"
 
 export function ProductGrid() {
   const searchParams = useSearchParams()
   const initial = searchParams.get("categorie") ?? "all"
   const [active, setActive] = useState(initial)
+  const { products, loading } = useProducts()
 
   const filtered = useMemo(() => {
     if (active === "all") return products
     return products.filter((p) => p.categorySlug === active)
-  }, [active])
+  }, [active, products])
 
   return (
     <div className="flex flex-col gap-8">
@@ -39,8 +41,9 @@ export function ProductGrid() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {filtered.length}{" "}
-        {filtered.length === 1 ? "product" : "producten"} gevonden
+        {loading
+          ? "Producten laden…"
+          : `${filtered.length} ${filtered.length === 1 ? "product" : "producten"} gevonden`}
       </p>
 
       {filtered.length > 0 ? (
@@ -49,7 +52,7 @@ export function ProductGrid() {
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
-      ) : (
+      ) : !loading ? (
         <Empty>
           <EmptyHeader>
             <EmptyTitle>Geen producten gevonden</EmptyTitle>
@@ -58,7 +61,7 @@ export function ProductGrid() {
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      )}
+      ) : null}
     </div>
   )
 }

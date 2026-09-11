@@ -26,13 +26,14 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { useQuote } from "@/lib/quote-context"
-import { products } from "@/lib/data"
+import { useProducts } from "@/lib/use-products"
 import { submitQuote } from "@/lib/submit-quote"
 import { toast } from "sonner"
 
 export function QuoteForm() {
   const router = useRouter()
   const { items, addItem, removeItem, setQuantity } = useQuote()
+  const { products } = useProducts()
   const [isPending, startTransition] = useTransition()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [selectValue, setSelectValue] = useState("")
