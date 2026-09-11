@@ -12,10 +12,8 @@ import {
   SheetClose,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
 import { Logo } from "@/components/logo"
 import { QuoteCtaButton } from "@/components/quote-cta-button"
-import { useQuote } from "@/lib/quote-context"
 import { cn } from "@/lib/utils"
 
 const links = [
@@ -29,7 +27,6 @@ const links = [
 export function SiteHeader() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const { count } = useQuote()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/90 backdrop-blur-xl">
@@ -87,19 +84,10 @@ export function SiteHeader() {
                     }
                   />
                 ))}
-                <SheetClose
-                  render={
-                    <Link href="/offerte" className="mt-4">
-                      <Button className="h-11 w-full gap-2 font-semibold shadow-none" size="lg">
-                        Offerte aanvragen
-                        {count > 0 && (
-                          <Badge variant="secondary" className="rounded-full">
-                            {count}
-                          </Badge>
-                        )}
-                      </Button>
-                    </Link>
-                  }
+                <QuoteCtaButton
+                  size="lg"
+                  className="mt-4 w-full"
+                  onClick={() => setOpen(false)}
                 />
               </nav>
             </SheetContent>

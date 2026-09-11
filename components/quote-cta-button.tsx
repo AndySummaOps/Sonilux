@@ -11,12 +11,14 @@ type QuoteCtaButtonProps = {
   className?: string
   size?: "header" | "default" | "lg"
   showIcon?: boolean
+  onClick?: () => void
 }
 
 export function QuoteCtaButton({
   className,
   size = "default",
   showIcon = true,
+  onClick,
 }: QuoteCtaButtonProps) {
   const { count } = useQuote()
   const isHeader = size === "header"
@@ -34,7 +36,7 @@ export function QuoteCtaButton({
         className,
       )}
     >
-      <Link href="/offerte">
+      <Link href="/offerte" onClick={onClick}>
         {showIcon && !isHeader && (
           <FileText className="size-4 shrink-0" aria-hidden />
         )}

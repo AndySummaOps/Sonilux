@@ -1,9 +1,8 @@
-import Link from "next/link"
 import type { Metadata } from "next"
-import { Phone, Mail, MapPin, Clock, FileText } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Phone, Mail, MapPin, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ContactForm } from "@/components/contact-form"
+import { QuoteCtaButton } from "@/components/quote-cta-button"
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -87,12 +86,7 @@ export default function ContactPage() {
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Stel je materialen samen en ontvang vrijblijvend een voorstel.
               </p>
-              <Button asChild className="w-full">
-                <Link href="/offerte">
-                  <FileText data-icon="inline-start" />
-                  Offerte aanvragen
-                </Link>
-              </Button>
+              <QuoteCtaButton size="lg" className="w-full" />
             </CardContent>
           </Card>
         </div>

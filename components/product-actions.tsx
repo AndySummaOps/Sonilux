@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
-import { Check, Plus, FileText } from "lucide-react"
+import { Check, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { QuoteCtaButton } from "@/components/quote-cta-button"
 import { useQuote } from "@/lib/quote-context"
 import { toast } from "sonner"
 
@@ -42,12 +42,7 @@ export function ProductActions({
           </>
         )}
       </Button>
-      <Button asChild size="lg" className="flex-1 glow-purple">
-        <Link href="/offerte">
-          <FileText data-icon="inline-start" />
-          Offerte aanvragen
-        </Link>
-      </Button>
+      <QuoteCtaButton size="lg" className="flex-1" />
       {!available && (
         <p className="sr-only">Dit product is momenteel niet beschikbaar.</p>
       )}

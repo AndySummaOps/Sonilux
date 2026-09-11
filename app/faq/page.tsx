@@ -7,6 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
+import { QuoteCtaButton } from "@/components/quote-cta-button"
 import { faqs } from "@/lib/data"
 
 export const metadata: Metadata = {
@@ -55,9 +56,7 @@ export default function FaqPage() {
           perfecte verhuurmaterialen voor jouw evenement.
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg" className="glow-primary">
-            <Link href="/offerte">Offerte aanvragen</Link>
-          </Button>
+          <QuoteCtaButton size="lg" />
           <Button asChild size="lg" variant="outline">
             <Link href="/contact">Contact opnemen</Link>
           </Button>

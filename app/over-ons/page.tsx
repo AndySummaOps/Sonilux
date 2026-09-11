@@ -1,8 +1,7 @@
 import Image from "next/image"
-import Link from "next/link"
 import type { Metadata } from "next"
-import { ArrowRight, Heart, ShieldCheck, Sparkles, Handshake } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Heart, ShieldCheck, Sparkles, Handshake } from "lucide-react"
+import { QuoteCtaButton } from "@/components/quote-cta-button"
 import { assetPath } from "@/lib/asset-path"
 
 export const metadata: Metadata = {
@@ -63,12 +62,7 @@ export default function OverOnsPage() {
               alles tot in de puntjes geregeld is.
             </p>
             <div>
-              <Button asChild size="lg">
-                <Link href="/offerte">
-                  Offerte aanvragen
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
+              <QuoteCtaButton size="lg" />
             </div>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-border">
