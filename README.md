@@ -18,19 +18,19 @@ De site wordt als statische export gedeployed via GitHub Actions.
 ### Stap 1 — GitHub repository aanmaken
 
 1. Ga naar [github.com/new](https://github.com/new)
-2. Naam bijv. `sonilux-website` (hoofdlettergevoelig voor de URL)
+2. Naam bijv. `SummaOps` (hoofdlettergevoelig voor de URL)
 3. Maak de repository aan (public)
 
 ### Stap 2 — Code uploaden
 
-In PowerShell, in de map `sonilux-website`:
+In PowerShell, in de map `SummaOps`:
 
 ```powershell
 git init
 git add .
 git commit -m "Initial commit: Sonilux website"
 git branch -M main
-git remote add origin https://github.com/JOUW-GEBRUIKERSNAAM/sonilux-website.git
+git remote add origin https://github.com/JOUW-GEBRUIKERSNAAM/SummaOps.git
 git push -u origin main
 ```
 
@@ -45,7 +45,7 @@ git push -u origin main
 
 Na ±2 minuten staat de site live op:
 
-`https://JOUW-GEBRUIKERSNAAM.github.io/sonilux-website/`
+`https://JOUW-GEBRUIKERSNAAM.github.io/SummaOps/`
 
 ### Andere repositorynaam?
 
