@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ProductActions } from "@/components/product-actions"
 import { ProductCard } from "@/components/product-card"
-import { getCategory } from "@/lib/data"
+import { useCategories } from "@/lib/use-categories"
 import { useProducts } from "@/lib/use-products"
 import { assetPath } from "@/lib/asset-path"
 
 export function ProductDetail({ slug }: { slug: string }) {
   const { products, loading } = useProducts()
+  const { categories } = useCategories()
   const product = products.find((p) => p.slug === slug)
 
   if (!loading && !product) {
@@ -39,7 +40,7 @@ export function ProductDetail({ slug }: { slug: string }) {
     return <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20" />
   }
 
-  const category = getCategory(product.categorySlug)
+  const category = categories.find((c) => c.slug === product.categorySlug)
   const related = products
     .filter((p) => p.categorySlug === product.categorySlug && p.slug !== product.slug)
     .slice(0, 3)

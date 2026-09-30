@@ -1,9 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import { MapPin, Phone, Mail } from "lucide-react"
 import { Logo } from "@/components/logo"
-import { categories } from "@/lib/data"
+import { useCategories } from "@/lib/use-categories"
 
 export function SiteFooter() {
+  const { categories } = useCategories()
+
   return (
     <footer className="border-t border-border/60 bg-card/40">
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import Image from "next/image"
-import { LogOut, Plus, Pencil, Trash2 } from "lucide-react"
+import { LogOut, Plus, Pencil, Trash2, Package, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel, FieldGroup, FieldError } from "@/components/ui/field"
@@ -17,9 +17,11 @@ import {
 import { supabase } from "@/lib/supabase"
 import { deleteProduct } from "@/lib/products"
 import { useProducts } from "@/lib/use-products"
-import { categories, type Product } from "@/lib/data"
+import type { Product } from "@/lib/data"
+import { useCategories } from "@/lib/use-categories"
 import { assetPath } from "@/lib/asset-path"
 import { ProductForm } from "@/components/admin/product-form"
+import { CategoryManager } from "@/components/admin/category-manager"
 import { toast } from "sonner"
 
 export default function AdminPage() {
@@ -76,7 +78,7 @@ function AdminLogin() {
         Sonilux Admin
       </h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Log in om producten te beheren.
+        Log in om producten en categorieën te beheren.
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -121,6 +123,12 @@ function AdminLogin() {
 
 function AdminDashboard() {
   const { products, loading, refetch } = useProducts()
+  const {
+    categories,
+    loading: categoriesLoading,
+    refetch: refetchCategories,
+  } = useCategories()
+  const [tab, setTab] = useState<"products" | "categories">("products")
   const [formOpen, setFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
@@ -151,10 +159,10 @@ function AdminDashboard() {
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-foreground">
-            Producten
+            Sonilux Admin
           </h1>
           <p className="text-sm text-muted-foreground">
-            Beheer het assortiment dat klanten op de website zien.
+            Beheer wat klanten op de website zien.
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
@@ -163,86 +171,128 @@ function AdminDashboard() {
         </Button>
       </div>
 
-      <Button className="mb-6" onClick={openCreate}>
-        <Plus data-icon="inline-start" />
-        Nieuw product
-      </Button>
+      <div
+        role="tablist"
+        aria-label="Wat wil je beheren?"
+        className="mb-8 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-1.5"
+      >
+        <Button
+          role="tab"
+          aria-selected={tab === "products"}
+          variant={tab === "products" ? "default" : "ghost"}
+          className="h-12 text-base"
+          onClick={() => setTab("products")}
+        >
+          <Package data-icon="inline-start" className="size-5" />
+          Producten
+        </Button>
+        <Button
+          role="tab"
+          aria-selected={tab === "categories"}
+          variant={tab === "categories" ? "default" : "ghost"}
+          className="h-12 text-base"
+          onClick={() => setTab("categories")}
+        >
+          <FolderOpen data-icon="inline-start" className="size-5" />
+          Categorieën
+        </Button>
+      </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Producten laden…</p>
-      ) : products.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>Nog geen producten</EmptyTitle>
-            <EmptyDescription>
-              Klik op "Nieuw product" om je eerste product toe te voegen.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      {tab === "categories" ? (
+        <CategoryManager
+          categories={categories}
+          products={products}
+          loading={categoriesLoading || loading}
+          onChanged={() => {
+            refetchCategories()
+            refetch()
+          }}
+        />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {products.map((product) => {
-            const category = categories.find((c) => c.slug === product.categorySlug)
-            return (
-              <li
-                key={product.id}
-                className="flex items-center gap-4 rounded-xl border border-border bg-card p-3"
-              >
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                  {product.image && (
-                    <Image
-                      src={assetPath(product.image)}
-                      alt=""
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-foreground">{product.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {category?.name ?? "Geen categorie"}
-                  </p>
-                </div>
-                <Badge
-                  variant={product.available ? "default" : "secondary"}
-                  className={
-                    product.available
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  }
-                >
-                  {product.available ? "Beschikbaar" : "Niet beschikbaar"}
-                </Badge>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`${product.name} bewerken`}
-                    onClick={() => openEdit(product)}
+        <>
+          <Button size="lg" className="mb-6" onClick={openCreate}>
+            <Plus data-icon="inline-start" />
+            Nieuw product
+          </Button>
+
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Producten laden…</p>
+          ) : products.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Nog geen producten</EmptyTitle>
+                <EmptyDescription>
+                  Klik op "Nieuw product" om je eerste product toe te voegen.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {products.map((product) => {
+                const category = categories.find((c) => c.slug === product.categorySlug)
+                return (
+                  <li
+                    key={product.id}
+                    className="flex items-center gap-4 rounded-xl border border-border bg-card p-3"
                   >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    aria-label={`${product.name} verwijderen`}
-                    onClick={() => handleDelete(product)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                      {product.image && (
+                        <Image
+                          src={assetPath(product.image)}
+                          alt=""
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">{product.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {category?.name ?? "Geen categorie"}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={product.available ? "default" : "secondary"}
+                      className={
+                        product.available
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }
+                    >
+                      {product.available ? "Beschikbaar" : "Niet beschikbaar"}
+                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={`${product.name} bewerken`}
+                        onClick={() => openEdit(product)}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon-sm"
+                        aria-label={`${product.name} verwijderen`}
+                        onClick={() => handleDelete(product)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
 
       <ProductForm
         open={formOpen}
         onOpenChange={setFormOpen}
         product={editingProduct}
+        categories={categories}
         onSaved={refetch}
       />
     </div>

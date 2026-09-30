@@ -30,7 +30,7 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet"
-import { categories, type Product } from "@/lib/data"
+import type { Category, Product } from "@/lib/data"
 import { createProduct, updateProduct, uploadProductImage } from "@/lib/products"
 import { assetPath } from "@/lib/asset-path"
 import { toast } from "sonner"
@@ -39,19 +39,20 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   product: Product | null
+  categories: Category[]
   onSaved: () => void
 }
 
 const emptyForm = {
   name: "",
-  categorySlug: categories[0]?.slug ?? "",
+  categorySlug: "",
   shortDescription: "",
   description: "",
   dimensions: "",
   available: true,
 }
 
-export function ProductForm({ open, onOpenChange, product, onSaved }: Props) {
+export function ProductForm({ open, onOpenChange, product, categories, onSaved }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>("")
@@ -74,13 +75,13 @@ export function ProductForm({ open, onOpenChange, product, onSaved }: Props) {
       setExistingImageUrl(product.image)
       setImagePreview(product.image ? assetPath(product.image) : "")
     } else {
-      setForm(emptyForm)
+      setForm({ ...emptyForm, categorySlug: categories[0]?.slug ?? "" })
       setExistingImageUrl("")
       setImagePreview("")
     }
     setImageFile(null)
     setErrors({})
-  }, [open, product])
+  }, [open, product, categories])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -94,6 +95,7 @@ export function ProductForm({ open, onOpenChange, product, onSaved }: Props) {
 
     const nextErrors: Record<string, string> = {}
     if (!form.name.trim()) nextErrors.name = "Vul een naam in."
+    if (!form.categorySlug) nextErrors.category = "Kies een categorie."
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -162,8 +164,8 @@ export function ProductForm({ open, onOpenChange, product, onSaved }: Props) {
               {errors.name && <FieldError>{errors.name}</FieldError>}
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="p-category">Categorie</FieldLabel>
+            <Field data-invalid={!!errors.category}>
+              <FieldLabel htmlFor="p-category">Categorie *</FieldLabel>
               <Select
                 value={form.categorySlug}
                 onValueChange={(v) => setForm((f) => ({ ...f, categorySlug: v ?? f.categorySlug }))}
@@ -185,6 +187,11 @@ export function ProductForm({ open, onOpenChange, product, onSaved }: Props) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              {errors.category && <FieldError>{errors.category}</FieldError>}
+              <FieldDescription>
+                Staat de juiste categorie er niet tussen? Voeg hem toe via het
+                tabblad "Categorieën" bovenaan.
+              </FieldDescription>
             </Field>
 
             <Field>

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/product-card"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { categories } from "@/lib/data"
+import { useCategories } from "@/lib/use-categories"
 import { useProducts } from "@/lib/use-products"
 
 export function ProductGrid() {
@@ -13,6 +13,7 @@ export function ProductGrid() {
   const initial = searchParams.get("categorie") ?? "all"
   const [active, setActive] = useState(initial)
   const { products, loading } = useProducts()
+  const { categories } = useCategories()
 
   const filtered = useMemo(() => {
     if (active === "all") return products

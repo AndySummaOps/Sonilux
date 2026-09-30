@@ -1,7 +1,9 @@
 export type Category = {
+  id: string
   slug: string
   name: string
   description: string
+  sortOrder: number
 }
 
 export type Faq = {
@@ -20,43 +22,6 @@ export type Product = {
   dimensions: string
   specifications: { label: string; value: string }[]
   image: string
-}
-
-export const categories: Category[] = [
-  {
-    slug: "led-barren",
-    name: "LED Barren",
-    description:
-      "Strakke, oplichtende bars en toogelementen die elk feest of event direct cachet geven.",
-  },
-  {
-    slug: "led-statafels",
-    name: "LED Statafels",
-    description:
-      "Sfeervolle, kleurveranderende statafels voor recepties, beurzen en netwerkmomenten.",
-  },
-  {
-    slug: "led-verlichting",
-    name: "LED Verlichting",
-    description:
-      "Professionele lichtoplossingen om je locatie of podium volledig tot leven te brengen.",
-  },
-  {
-    slug: "led-kubussen",
-    name: "LED Kubussen",
-    description:
-      "Veelzijdige, draadloze kubussen als zitelement, tafel of decoratief accent.",
-  },
-  {
-    slug: "evenementen",
-    name: "Evenementen",
-    description:
-      "Aanvullende materialen voor festivals, bruiloften en grote evenementen.",
-  },
-]
-
-export function getCategory(slug: string) {
-  return categories.find((c) => c.slug === slug)
 }
 
 export const faqs: Faq[] = [

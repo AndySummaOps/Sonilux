@@ -1,7 +1,9 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowUpRight, Lightbulb, Square, Box, Boxes, PartyPopper } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { categories } from "@/lib/data"
+import { useCategories } from "@/lib/use-categories"
 
 const icons: Record<string, typeof Lightbulb> = {
   "led-barren": Square,
@@ -12,6 +14,8 @@ const icons: Record<string, typeof Lightbulb> = {
 }
 
 export function Categories() {
+  const { categories } = useCategories()
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
