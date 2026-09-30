@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const isGithubPages = process.env.GITHUB_PAGES === "true"
-const repoName = process.env.GITHUB_PAGES_BASE_PATH || "SummaOps"
+const repoName = process.env.GITHUB_PAGES_BASE_PATH || "sonilux-website"
 const basePath = isGithubPages ? `/${repoName}` : ""
 
 const nextConfig = {
