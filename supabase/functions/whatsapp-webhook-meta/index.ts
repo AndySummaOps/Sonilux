@@ -1,9 +1,14 @@
 // Meta WhatsApp Cloud API webhook -> Sonilux AI bot.
 //
-// Flow: Meta posts an incoming WhatsApp message here -> we look up (or
-// create) the customer + conversation in Supabase -> ask Gemini to draft a
-// reply using the product catalog + conversation history as context -> send
-// the reply back through the Meta Cloud API -> log both messages.
+// Flow: Meta posts an incoming WhatsApp message here -> we answer 200 right
+// away and process in the background: look up (or create) the customer +
+// conversation -> safety checks -> ask Gemini for a structured turn (reply,
+// handover, request fields) -> send the reply (or a fixed handover message)
+// through the Meta Cloud API -> log both messages.
+//
+// The bot decides nothing: it answers, suggests in-stock products and
+// collects a request. Handover sets the conversation to "wacht_op_mens", after
+// which the bot stays silent in that conversation.
 //
 // Required secrets (set via Supabase dashboard -> Edge Functions -> Secrets,
 // or `supabase secrets set NAME=value --project-ref fbcwvwukdeqowtcuzrgn`):
@@ -13,18 +18,25 @@
 //   META_PHONE_NUMBER_ID  the phone_number_id from the Meta App dashboard
 //   META_APP_SECRET       (optional but recommended) App Secret, used to verify
 //                         that incoming webhook calls really come from Meta
-//   GEMINI_API_KEY        free API key from https://aistudio.google.com/apikey
-//   GEMINI_MODEL          optional, defaults to "gemini-2.5-flash" below --
-//                         override here if Google renames/retires that model
+//   GEMINI_API_KEY        API key from https://aistudio.google.com/apikey
+//   GEMINI_MODEL          optional, defaults to "gemini-2.5-flash" below
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
 // NOTE ON PHONE NUMBER FORMAT: Meta sends numbers as digits only, no "+"
 // (e.g. "31612345678"). This function normalizes to "+31612345678" style
 // (leading "+") before touching the database, to match the existing
-// customers/conversations schema. If your existing rows are stored without
-// the "+", adjust `toE164()` below or backfill the old rows once.
+// customers/conversations schema.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { buildSystemPrompt, type BotTurn, type HandoverReason, type Product } from "./prompt.ts";
+import { callGemini } from "./gemini.ts";
+import {
+  detectInboundHandover,
+  detectOutboundViolation,
+  ensureIntro,
+  HANDOVER_MESSAGES,
+  toWhatsappFormatting,
+} from "./guards.ts";
 
 const META_VERIFY_TOKEN = Deno.env.get("META_VERIFY_TOKEN")!;
 const META_WHATSAPP_TOKEN = Deno.env.get("META_WHATSAPP_TOKEN")!;
@@ -42,6 +54,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function toE164(digitsOnly: string): string {
   return digitsOnly.startsWith("+") ? digitsOnly : `+${digitsOnly}`;
+}
+
+function todayInAmsterdam(): string {
+  return new Intl.DateTimeFormat("nl-NL", {
+    timeZone: "Europe/Amsterdam",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 }
 
 async function verifyMetaSignature(req: Request, rawBody: string): Promise<boolean> {
@@ -69,62 +91,19 @@ async function verifyMetaSignature(req: Request, rawBody: string): Promise<boole
   return macHex === expectedHex;
 }
 
-async function fetchActiveProducts() {
+async function fetchSuggestableProducts(): Promise<Product[]> {
   const { data, error } = await supabase
     .from("products")
-    .select("name, short_description, price_per_day, stock_quantity, product_categories(name)")
+    .select("name, short_description, description, event_types, min_guests, max_guests, product_categories(name)")
     .eq("is_active", true)
+    .eq("in_stock", true)
     .order("name");
 
   if (error) {
     console.error("[whatsapp-webhook-meta] products query failed:", error);
     return [];
   }
-  return data ?? [];
-}
-
-function buildSystemPrompt(products: Awaited<ReturnType<typeof fetchActiveProducts>>) {
-  const catalogLines = products
-    .map((p) => {
-      const category = (p as any).product_categories?.name ?? "Overig";
-      return `- ${p.name} (${category}): ${p.short_description ?? ""} — €${p.price_per_day}/dag, voorraad: ${p.stock_quantity}`;
-    })
-    .join("\n");
-
-  return `Je bent de WhatsApp-assistent van Sonilux, een verhuurbedrijf voor LED-verlichting, statafels en eventmateriaal in Limburg, Nederland.\n\nBeschikbare producten (alleen actief/op voorraad):\n${catalogLines}\n\nRegels:\n- Antwoord kort, vriendelijk en to-the-point, in het Nederlands, passend bij WhatsApp (geen lange lappen tekst).\n- Beantwoord vragen over producten, prijzen, beschikbaarheid en het huurproces op basis van bovenstaande lijst.\n- Verzin nooit prijzen of producten die niet in de lijst staan.\n- Je maakt zelf GEEN offerte of boeking aan. Als een klant concreet iets wil huren of boeken, verwijs ze vriendelijk naar het offerteformulier op de website, of zeg dat een medewerker het verder oppakt.\n- Als je het antwoord niet zeker weet, geef dat eerlijk aan en bied aan dat een medewerker terugkomt.`;
-}
-
-async function callGemini(systemPrompt: string, history: { direction: string; content: string | null }[]) {
-  const contents = history
-    .filter((m) => m.content)
-    .map((m) => ({
-      role: m.direction === "inbound" ? "user" : "model",
-      parts: [{ text: m.content as string }],
-    }));
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        // Gemini 2.5 counts "thinking" tokens against maxOutputTokens, which
-        // cut replies off mid-sentence. Short WhatsApp replies don't need it.
-        generationConfig: { maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${text}`);
-  }
-
-  const json = await res.json();
-  const text2 = json.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "";
-  return text2.trim() || "Bedankt voor je bericht! Een medewerker neemt zo snel mogelijk contact met je op.";
+  return (data ?? []) as unknown as Product[];
 }
 
 async function sendWhatsappReply(to: string, body: string) {
@@ -151,6 +130,164 @@ async function sendWhatsappReply(to: string, body: string) {
     throw new Error(`Meta send failed: ${JSON.stringify(json.error ?? json)}`);
   }
   return json.messages?.[0]?.id as string | undefined;
+}
+
+// TODO (taak 6/7): reden opslaan en Rick mailen.
+async function onHandover(conversationId: string, reason: HandoverReason, detail: string) {
+  console.log(`[whatsapp-webhook-meta] handover ${conversationId}: ${reason} (${detail})`);
+}
+
+// TODO (taak 6/7): aanvraag opslaan (status nieuw) en Rick mailen.
+async function onRequestConfirmed(conversationId: string, turn: BotTurn) {
+  console.log(`[whatsapp-webhook-meta] request confirmed ${conversationId}:`, JSON.stringify(turn.request));
+}
+
+type InboundMessage = { id: string; phone: string; body: string; profileName?: string };
+
+async function handleInboundMessage(msg: InboundMessage) {
+  const { phone, body, profileName } = msg;
+
+  // Meta retries webhooks it considers failed; never answer the same message twice.
+  const { data: duplicate } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("whatsapp_message_id", msg.id)
+    .limit(1)
+    .maybeSingle();
+  if (duplicate) {
+    console.log(`[whatsapp-webhook-meta] duplicate ${msg.id}, skipped`);
+    return;
+  }
+
+  let { data: customer } = await supabase
+    .from("customers")
+    .select("id")
+    .or(`whatsapp_number.eq.${phone},phone.eq.${phone}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (!customer) {
+    const { data: newCustomer, error } = await supabase
+      .from("customers")
+      .insert({
+        name: profileName || phone,
+        phone,
+        whatsapp_number: phone,
+        source: "whatsapp",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    customer = newCustomer;
+  }
+
+  let { data: conversation } = await supabase
+    .from("conversations")
+    .select("id, status")
+    .eq("whatsapp_number", phone)
+    .neq("status", "gesloten")
+    .order("last_message_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!conversation) {
+    const { data: newConversation, error } = await supabase
+      .from("conversations")
+      .insert({ customer_id: customer.id, whatsapp_number: phone, status: "open" })
+      .select("id, status")
+      .single();
+    if (error) throw error;
+    conversation = newConversation;
+  }
+
+  await supabase.from("messages").insert({
+    conversation_id: conversation.id,
+    direction: "inbound",
+    sender_type: "klant",
+    content: body,
+    whatsapp_message_id: msg.id,
+  });
+
+  // A human took over this conversation: log the message but stay quiet.
+  if (conversation.status === "wacht_op_mens") {
+    await supabase
+      .from("conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversation.id);
+    return;
+  }
+
+  const { data: history } = await supabase
+    .from("messages")
+    .select("direction, sender_type, content")
+    .eq("conversation_id", conversation.id)
+    .order("created_at", { ascending: false })
+    .limit(MAX_HISTORY_MESSAGES);
+
+  const orderedHistory = (history ?? []).reverse();
+  const isFirstReply = !orderedHistory.some((m) => m.direction === "outbound");
+
+  let handoverReason: HandoverReason | null = detectInboundHandover(body);
+  let handoverDetail = "trefwoord in klantbericht";
+  let turn: BotTurn | null = null;
+
+  if (!handoverReason) {
+    try {
+      const products = await fetchSuggestableProducts();
+      turn = await callGemini({
+        apiKey: GEMINI_API_KEY,
+        model: GEMINI_MODEL,
+        systemPrompt: buildSystemPrompt(products, todayInAmsterdam()),
+        history: orderedHistory,
+      });
+      if (turn.handover) {
+        handoverReason = turn.handover_reason ?? "weet_het_niet";
+        handoverDetail = "besloten door model";
+      } else if (!turn.reply) {
+        handoverReason = "weet_het_niet";
+        handoverDetail = "leeg antwoord van model";
+      } else {
+        const violation = detectOutboundViolation(turn.reply);
+        if (violation) {
+          handoverReason = violation;
+          handoverDetail = `geblokkeerd antwoord: ${turn.reply}`;
+        }
+      }
+    } catch (err) {
+      // Never leave a customer without an answer: hand over to Rick instead.
+      console.error("[whatsapp-webhook-meta] Gemini failed:", err);
+      handoverReason = "weet_het_niet";
+      handoverDetail = `technische fout: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+
+  const reply = handoverReason
+    ? HANDOVER_MESSAGES[handoverReason]
+    : ensureIntro(toWhatsappFormatting(turn!.reply), isFirstReply);
+
+  const messageId = await sendWhatsappReply(phone, reply);
+
+  await supabase.from("messages").insert({
+    conversation_id: conversation.id,
+    direction: "outbound",
+    sender_type: "bot",
+    content: reply,
+    whatsapp_message_id: messageId,
+  });
+
+  await supabase
+    .from("conversations")
+    .update({
+      last_message_at: new Date().toISOString(),
+      ...(handoverReason ? { status: "wacht_op_mens" } : {}),
+    })
+    .eq("id", conversation.id);
+
+  if (handoverReason) {
+    await onHandover(conversation.id, handoverReason, handoverDetail);
+  } else if (turn?.request_complete && turn.customer_confirmed) {
+    await onRequestConfirmed(conversation.id, turn);
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -201,97 +338,20 @@ Deno.serve(async (req: Request) => {
     return new Response("OK (unsupported message type)", { status: 200 });
   }
 
-  const phone = toE164(message.from as string);
-  const body = message.text.body as string;
-  const profileName = value?.contacts?.[0]?.profile?.name as string | undefined;
+  const inbound: InboundMessage = {
+    id: message.id as string,
+    phone: toE164(message.from as string),
+    body: message.text.body as string,
+    profileName: value?.contacts?.[0]?.profile?.name as string | undefined,
+  };
 
-  try {
-    let { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .or(`whatsapp_number.eq.${phone},phone.eq.${phone}`)
-      .limit(1)
-      .maybeSingle();
+  // Gemini can take a while; answer Meta now so it doesn't retry, and finish
+  // the work in the background.
+  const work = handleInboundMessage(inbound).catch((err) =>
+    console.error("[whatsapp-webhook-meta] Unhandled error:", err)
+  );
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).EdgeRuntime?.waitUntil(work);
 
-    if (!customer) {
-      const { data: newCustomer, error } = await supabase
-        .from("customers")
-        .insert({
-          name: profileName || phone,
-          phone,
-          whatsapp_number: phone,
-          source: "whatsapp",
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      customer = newCustomer;
-    }
-
-    let { data: conversation } = await supabase
-      .from("conversations")
-      .select("id, status")
-      .eq("whatsapp_number", phone)
-      .neq("status", "gesloten")
-      .order("last_message_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!conversation) {
-      const { data: newConversation, error } = await supabase
-        .from("conversations")
-        .insert({ customer_id: customer.id, whatsapp_number: phone, status: "open" })
-        .select("id, status")
-        .single();
-      if (error) throw error;
-      conversation = newConversation;
-    }
-
-    await supabase.from("messages").insert({
-      conversation_id: conversation.id,
-      direction: "inbound",
-      sender_type: "klant",
-      content: body,
-    });
-
-    // A human took over this conversation: log the message but stay quiet.
-    if (conversation.status === "wacht_op_mens") {
-      await supabase
-        .from("conversations")
-        .update({ last_message_at: new Date().toISOString() })
-        .eq("id", conversation.id);
-      return new Response("OK (waiting for human)", { status: 200 });
-    }
-
-    const { data: history } = await supabase
-      .from("messages")
-      .select("direction, content")
-      .eq("conversation_id", conversation.id)
-      .order("created_at", { ascending: false })
-      .limit(MAX_HISTORY_MESSAGES);
-
-    const orderedHistory = (history ?? []).reverse();
-    const products = await fetchActiveProducts();
-    const systemPrompt = buildSystemPrompt(products);
-    const reply = await callGemini(systemPrompt, orderedHistory);
-    const messageId = await sendWhatsappReply(phone, reply);
-
-    await supabase.from("messages").insert({
-      conversation_id: conversation.id,
-      direction: "outbound",
-      sender_type: "bot",
-      content: reply,
-      whatsapp_message_id: messageId,
-    });
-
-    await supabase
-      .from("conversations")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", conversation.id);
-
-    return new Response("OK", { status: 200 });
-  } catch (err) {
-    console.error("[whatsapp-webhook-meta] Unhandled error:", err);
-    return new Response("Internal error", { status: 500 });
-  }
+  return new Response("OK", { status: 200 });
 });
