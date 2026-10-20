@@ -110,7 +110,9 @@ async function callGemini(systemPrompt: string, history: { direction: string; co
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 400 },
+        // Gemini 2.5 counts "thinking" tokens against maxOutputTokens, which
+        // cut replies off mid-sentence. Short WhatsApp replies don't need it.
+        generationConfig: { maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
       }),
     },
   );
