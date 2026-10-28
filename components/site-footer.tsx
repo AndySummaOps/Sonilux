@@ -58,6 +58,11 @@ export function SiteFooter() {
                 Contact
               </Link>
             </li>
+            <li>
+              <Link href="/privacy" className="transition-colors hover:text-foreground">
+                Privacyverklaring
+              </Link>
+            </li>
           </ul>
         </div>
 
