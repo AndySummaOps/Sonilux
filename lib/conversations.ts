@@ -40,7 +40,7 @@ export type QuoteRequest = {
 export const CONVERSATION_STATUS_LABELS: Record<ConversationStatus, string> = {
   open: "Bot actief",
   wacht_op_klant: "Bot actief",
-  wacht_op_mens: "Wacht op Rick",
+  wacht_op_mens: "Wacht op Rik",
   gesloten: "Gesloten",
 }
 
@@ -68,7 +68,7 @@ type ConversationRow = {
   customers: { name: string } | { name: string }[] | null
 }
 
-/** Gesprekken die op Rick wachten eerst, daarna de meest recente. */
+/** Gesprekken die op Rik wachten eerst, daarna de meest recente. */
 export async function fetchConversations(): Promise<Conversation[]> {
   const { data, error } = await supabase
     .from("conversations")
@@ -154,7 +154,7 @@ export async function setQuoteStatus(
   return error ? { error: "Status wijzigen is mislukt." } : {}
 }
 
-/** Rick antwoordt zelf; gaat via de Edge Function zodat de Meta-token geheim blijft. */
+/** Rik antwoordt zelf; gaat via de Edge Function zodat de Meta-token geheim blijft. */
 export async function sendAdminMessage(
   conversationId: string,
   text: string,

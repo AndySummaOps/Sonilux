@@ -101,7 +101,7 @@ export function ConversationInbox() {
       ) : (
         <ul className="flex flex-col gap-3">
           {conversations.map((conversation) => {
-            const waitsForRick = conversation.status === "wacht_op_mens"
+            const waitsForRik = conversation.status === "wacht_op_mens"
             return (
               <li key={conversation.id}>
                 <button
@@ -110,14 +110,14 @@ export function ConversationInbox() {
                   className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary">
-                    {waitsForRick ? <UserRound className="size-5" /> : <Bot className="size-5" />}
+                    {waitsForRik ? <UserRound className="size-5" /> : <Bot className="size-5" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">
                       {conversation.customerName}
                     </p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {waitsForRick && conversation.handoverReason
+                      {waitsForRik && conversation.handoverReason
                         ? (HANDOVER_REASON_LABELS[conversation.handoverReason] ??
                           conversation.handoverReason)
                         : conversation.whatsappNumber}
@@ -125,9 +125,9 @@ export function ConversationInbox() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <Badge
-                      variant={waitsForRick ? "default" : "secondary"}
+                      variant={waitsForRik ? "default" : "secondary"}
                       className={
-                        waitsForRick
+                        waitsForRik
                           ? "bg-accent text-accent-foreground"
                           : "bg-secondary text-muted-foreground"
                       }
@@ -225,7 +225,7 @@ function ConversationSheet({
     toast.success("Status van de aanvraag bijgewerkt.")
   }
 
-  const waitsForRick = status === "wacht_op_mens"
+  const waitsForRik = status === "wacht_op_mens"
 
   return (
     <Sheet open={!!conversation} onOpenChange={onOpenChange}>
@@ -240,7 +240,7 @@ function ConversationSheet({
 
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4">
           <div className="flex flex-wrap gap-2">
-            {waitsForRick ? (
+            {waitsForRik ? (
               <Button
                 size="sm"
                 disabled={busy}
@@ -337,7 +337,7 @@ function ConversationSheet({
                       ? "Klant"
                       : message.senderType === "bot"
                         ? "Assistent"
-                        : "Rick"}{" "}
+                        : "Rik"}{" "}
                     · {dateTime.format(new Date(message.createdAt))}
                   </p>
                 </div>

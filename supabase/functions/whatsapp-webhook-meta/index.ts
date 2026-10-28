@@ -20,11 +20,11 @@
 //                         that incoming webhook calls really come from Meta
 //   GEMINI_API_KEY        API key from https://aistudio.google.com/apikey
 //   GEMINI_MODEL          optional, defaults to "gemini-2.5-flash" below
-//   RICK_WHATSAPP_NUMBER  number that gets the notifications, e.g. "+31612345678"
-//   RICK_TEMPLATE_AANVRAAG   optional, approved template name for a new request
-//   RICK_TEMPLATE_OVERDRACHT optional, approved template name for a handover
+//   RIK_WHATSAPP_NUMBER  number that gets the notifications, e.g. "+31612345678"
+//   RIK_TEMPLATE_AANVRAAG   optional, approved template name for a new request
+//   RIK_TEMPLATE_OVERDRACHT optional, approved template name for a handover
 //                         (see notify.ts; without them plain text is sent)
-//   RICK_TEMPLATE_LANGUAGE   optional, defaults to "nl"
+//   RIK_TEMPLATE_LANGUAGE   optional, defaults to "nl"
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
 // NOTE ON PHONE NUMBER FORMAT: Meta sends numbers as digits only, no "+"
@@ -51,7 +51,7 @@ const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID")!;
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
-const RICK_WHATSAPP_NUMBER = Deno.env.get("RICK_WHATSAPP_NUMBER") ?? "";
+const RIK_WHATSAPP_NUMBER = Deno.env.get("RIK_WHATSAPP_NUMBER") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -62,10 +62,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const meta = { token: META_WHATSAPP_TOKEN, phoneNumberId: META_PHONE_NUMBER_ID };
 const notifyConfig: NotifyConfig = {
   ...meta,
-  rickNumber: RICK_WHATSAPP_NUMBER,
-  templateRequest: Deno.env.get("RICK_TEMPLATE_AANVRAAG") ?? "",
-  templateHandover: Deno.env.get("RICK_TEMPLATE_OVERDRACHT") ?? "",
-  templateLanguage: Deno.env.get("RICK_TEMPLATE_LANGUAGE") ?? "nl",
+  rikNumber: RIK_WHATSAPP_NUMBER,
+  templateRequest: Deno.env.get("RIK_TEMPLATE_AANVRAAG") ?? "",
+  templateHandover: Deno.env.get("RIK_TEMPLATE_OVERDRACHT") ?? "",
+  templateLanguage: Deno.env.get("RIK_TEMPLATE_LANGUAGE") ?? "nl",
 };
 
 function toE164(digitsOnly: string): string {
@@ -142,8 +142,8 @@ function requestFingerprint(r: { event_date: string | null; guests: number | nul
 }
 
 // The model keeps customer_confirmed true on later turns ("bedankt!"), so the
-// same request must not be saved or sent to Rick twice. A changed request
-// updates the still-unhandled one; once Rick has picked it up, a new one is made.
+// same request must not be saved or sent to Rik twice. A changed request
+// updates the still-unhandled one; once Rik has picked it up, a new one is made.
 async function onRequestConfirmed(ctx: ConversationContext, turn: BotTurn) {
   const request = turn.request;
   const productList = request.products.join(", ");
@@ -210,9 +210,9 @@ type InboundMessage = { id: string; phone: string; body: string; profileName?: s
 async function handleInboundMessage(msg: InboundMessage) {
   const { phone, body, profileName } = msg;
 
-  // Rick's own number gets the notifications; never treat him as a customer.
-  if (RICK_WHATSAPP_NUMBER && phone === RICK_WHATSAPP_NUMBER) {
-    console.log("[whatsapp-webhook-meta] message from Rick's number, ignored");
+  // Rik's own number gets the notifications; never treat him as a customer.
+  if (RIK_WHATSAPP_NUMBER && phone === RIK_WHATSAPP_NUMBER) {
+    console.log("[whatsapp-webhook-meta] message from Rik's number, ignored");
     return;
   }
 
@@ -323,7 +323,7 @@ async function handleInboundMessage(msg: InboundMessage) {
         }
       }
     } catch (err) {
-      // Never leave a customer without an answer: hand over to Rick instead.
+      // Never leave a customer without an answer: hand over to Rik instead.
       console.error("[whatsapp-webhook-meta] Gemini failed:", err);
       handoverReason = "weet_het_niet";
       handoverDetail = `technische fout: ${err instanceof Error ? err.message : String(err)}`;

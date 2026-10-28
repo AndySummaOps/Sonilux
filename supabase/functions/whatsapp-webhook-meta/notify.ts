@@ -1,7 +1,7 @@
-// WhatsApp notifications to Rick (new request / handover), sent from the bot
-// number to Rick's own number.
+// WhatsApp notifications to Rik (new request / handover), sent from the bot
+// number to Rik's own number.
 //
-// Rick usually hasn't messaged the bot number in the last 24 hours, so a
+// Rik usually hasn't messaged the bot number in the last 24 hours, so a
 // plain text message would not be delivered. When a template name is
 // configured, the approved template is used; otherwise plain text (fine for
 // testing right after you've sent the bot a message yourself).
@@ -35,7 +35,7 @@ import { type MetaConfig, sendTemplate, sendText } from "../_shared/whatsapp.ts"
 import type { HandoverReason, RequestDraft } from "./prompt.ts";
 
 export type NotifyConfig = MetaConfig & {
-  rickNumber: string;
+  rikNumber: string;
   templateRequest: string;
   templateHandover: string;
   templateLanguage: string;
@@ -114,14 +114,14 @@ export function handoverText(params: string[]) {
 }
 
 async function notify(cfg: NotifyConfig, templateName: string, params: string[], text: string) {
-  if (!cfg.rickNumber) {
-    console.warn("[notify] RICK_WHATSAPP_NUMBER not set, notification skipped");
+  if (!cfg.rikNumber) {
+    console.warn("[notify] RIK_WHATSAPP_NUMBER not set, notification skipped");
     return;
   }
   if (templateName) {
-    await sendTemplate(cfg, cfg.rickNumber, { name: templateName, language: cfg.templateLanguage, params });
+    await sendTemplate(cfg, cfg.rikNumber, { name: templateName, language: cfg.templateLanguage, params });
   } else {
-    await sendText(cfg, cfg.rickNumber, text);
+    await sendText(cfg, cfg.rikNumber, text);
   }
 }
 

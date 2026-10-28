@@ -4,7 +4,7 @@
 import type { HandoverReason } from "./prompt.ts";
 
 const ASKS_FOR_HUMAN =
-  /\b(mens|medewerker|iemand\s+(spreken|bellen)|echte?\s+persoon|persoonlijk\s+contact|bel\s+me|bellen|terugbellen|telefonisch|rick|eigenaar)\b/i;
+  /\b(mens|medewerker|iemand\s+(spreken|bellen)|echte?\s+persoon|persoonlijk\s+contact|bel\s+me|bellen|terugbellen|telefonisch|rik|rick|eigenaar)\b/i;
 
 const ASKS_ABOUT_PRICE =
   /(€|\b(prijs|prijzen|prijsje|kost|kosten|kostte|tarief|tarieven|korting|kortingen|aanbieding|actie\s*prijs|garantie|garanties|goedkoop|goedkoper|euro|betalen|borg|budget)\b)/i;
@@ -29,7 +29,7 @@ export function detectOutboundViolation(reply: string): HandoverReason | null {
   return null;
 }
 
-const HANDOFF = "Ik geef je bericht door aan Rick van Sonilux; hij neemt zo snel mogelijk persoonlijk contact met je op.";
+const HANDOFF = "Ik geef je bericht door aan Rik van Sonilux; hij neemt zo snel mogelijk persoonlijk contact met je op.";
 
 export const HANDOVER_MESSAGES: Record<HandoverReason, string> = {
   klant_wil_mens: `Prima! ${HANDOFF}`,

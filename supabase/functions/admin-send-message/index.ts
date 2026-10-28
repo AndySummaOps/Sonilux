@@ -1,9 +1,9 @@
-// Admin screen -> customer: Rick answers a WhatsApp conversation himself.
+// Admin screen -> customer: Rik answers a WhatsApp conversation himself.
 //
 // Called from the admin screen with the logged-in user's JWT. Only accounts
 // with app_metadata.role = "admin" may send. The message goes out from the
 // bot number, is logged as sender_type "medewerker", and the conversation is
-// set to "wacht_op_mens" so the bot stays out of it until Rick hands it back.
+// set to "wacht_op_mens" so the bot stays out of it until Rik hands it back.
 //
 // WhatsApp only delivers free-form messages within 24 hours after the
 // customer's last message; after that Meta rejects the send and we report it.

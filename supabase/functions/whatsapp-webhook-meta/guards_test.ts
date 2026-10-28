@@ -3,7 +3,7 @@ import { detectInboundHandover, detectOutboundViolation, ensureIntro, toWhatsapp
 import { parseBotTurn } from "./gemini.ts";
 
 Deno.test("inbound: vraag om een mens", () => {
-  for (const text of ["Kan ik iemand spreken?", "Ik wil graag een medewerker", "Kan Rick me bellen?", "Bel me even terug aub"]) {
+  for (const text of ["Kan ik iemand spreken?", "Ik wil graag een medewerker", "Kan Rik me bellen?", "Kan Rick me bellen?", "Bel me even terug aub"]) {
     assertEquals(detectInboundHandover(text), "klant_wil_mens", text);
   }
 });
@@ -39,7 +39,7 @@ Deno.test("outbound: normaal antwoord mag door", () => {
     detectOutboundViolation("Voor een bruiloft past de *Snackbar* mooi. Op welke datum is het feest?"),
     null,
   );
-  assertEquals(detectOutboundViolation("Rick bekijkt je aanvraag en neemt contact met je op."), null);
+  assertEquals(detectOutboundViolation("Rik bekijkt je aanvraag en neemt contact met je op."), null);
 });
 
 Deno.test("WhatsApp-opmaak", () => {
