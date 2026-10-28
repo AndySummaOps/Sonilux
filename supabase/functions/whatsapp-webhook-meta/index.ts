@@ -20,6 +20,11 @@
 //                         that incoming webhook calls really come from Meta
 //   GEMINI_API_KEY        API key from https://aistudio.google.com/apikey
 //   GEMINI_MODEL          optional, defaults to "gemini-2.5-flash" below
+//   RICK_WHATSAPP_NUMBER  number that gets the notifications, e.g. "+31612345678"
+//   RICK_TEMPLATE_AANVRAAG   optional, approved template name for a new request
+//   RICK_TEMPLATE_OVERDRACHT optional, approved template name for a handover
+//                         (see notify.ts; without them plain text is sent)
+//   RICK_TEMPLATE_LANGUAGE   optional, defaults to "nl"
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
 // NOTE ON PHONE NUMBER FORMAT: Meta sends numbers as digits only, no "+"
@@ -30,6 +35,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildSystemPrompt, type BotTurn, type HandoverReason, type Product } from "./prompt.ts";
 import { callGemini } from "./gemini.ts";
+import { type NotifyConfig, notifyHandover, notifyRequest } from "./notify.ts";
+import { sendText } from "../_shared/whatsapp.ts";
 import {
   detectInboundHandover,
   detectOutboundViolation,
@@ -44,13 +51,22 @@ const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID")!;
 const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+const RICK_WHATSAPP_NUMBER = Deno.env.get("RICK_WHATSAPP_NUMBER") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const GRAPH_VERSION = "v21.0";
 const MAX_HISTORY_MESSAGES = 20;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+const meta = { token: META_WHATSAPP_TOKEN, phoneNumberId: META_PHONE_NUMBER_ID };
+const notifyConfig: NotifyConfig = {
+  ...meta,
+  rickNumber: RICK_WHATSAPP_NUMBER,
+  templateRequest: Deno.env.get("RICK_TEMPLATE_AANVRAAG") ?? "",
+  templateHandover: Deno.env.get("RICK_TEMPLATE_OVERDRACHT") ?? "",
+  templateLanguage: Deno.env.get("RICK_TEMPLATE_LANGUAGE") ?? "nl",
+};
 
 function toE164(digitsOnly: string): string {
   return digitsOnly.startsWith("+") ? digitsOnly : `+${digitsOnly}`;
@@ -106,46 +122,99 @@ async function fetchSuggestableProducts(): Promise<Product[]> {
   return (data ?? []) as unknown as Product[];
 }
 
-async function sendWhatsappReply(to: string, body: string) {
-  const res = await fetch(
-    `https://graph.facebook.com/${GRAPH_VERSION}/${META_PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${META_WHATSAPP_TOKEN}`,
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: to.replace(/^\+/, ""), // Graph API wants digits only, no "+"
-        type: "text",
-        text: { body },
-      }),
-    },
-  );
+type ConversationContext = { conversationId: string; customerId: string; customerName: string; phone: string };
 
-  const json = await res.json();
-  if (!res.ok) {
-    console.error("[whatsapp-webhook-meta] Meta send failed:", json);
-    throw new Error(`Meta send failed: ${JSON.stringify(json.error ?? json)}`);
+async function onHandover(ctx: ConversationContext, reason: HandoverReason, detail: string, lastMessage: string) {
+  console.log(`[whatsapp-webhook-meta] handover ${ctx.conversationId}: ${reason} (${detail})`);
+  await supabase
+    .from("conversations")
+    .update({ handover_reason: reason, handover_at: new Date().toISOString() })
+    .eq("id", ctx.conversationId);
+  await notifyHandover(notifyConfig, ctx.customerName, ctx.phone, reason, lastMessage);
+}
+
+function isIsoDate(value: string | null): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
+}
+
+function requestFingerprint(r: { event_date: string | null; guests: number | null; location: string | null; event_type: string | null; notes: string | null }) {
+  return JSON.stringify([r.event_date, r.guests, r.location, r.event_type, r.notes]);
+}
+
+// The model keeps customer_confirmed true on later turns ("bedankt!"), so the
+// same request must not be saved or sent to Rick twice. A changed request
+// updates the still-unhandled one; once Rick has picked it up, a new one is made.
+async function onRequestConfirmed(ctx: ConversationContext, turn: BotTurn) {
+  const request = turn.request;
+  const productList = request.products.join(", ");
+  const row = {
+    customer_id: ctx.customerId,
+    conversation_id: ctx.conversationId,
+    source: "whatsapp",
+    event_date: isIsoDate(request.event_date) ? request.event_date : null,
+    guests: request.guests,
+    location: request.location,
+    event_type: request.event_type,
+    notes: [
+      productList ? `Gewenste producten: ${productList}` : null,
+      request.event_date && !isIsoDate(request.event_date) ? `Datum (zoals genoemd): ${request.event_date}` : null,
+    ].filter(Boolean).join("\n") || null,
+  };
+
+  const { data: latest } = await supabase
+    .from("quote_requests")
+    .select("id, status, event_date, guests, location, event_type, notes")
+    .eq("conversation_id", ctx.conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latest && requestFingerprint(latest) === requestFingerprint(row)) return;
+
+  let requestId: string;
+  if (latest && latest.status === "nieuw") {
+    const { error } = await supabase.from("quote_requests").update(row).eq("id", latest.id);
+    if (error) throw error;
+    requestId = latest.id;
+    await supabase.from("quote_request_items").delete().eq("quote_request_id", requestId);
+  } else {
+    const { data, error } = await supabase
+      .from("quote_requests")
+      .insert({ ...row, status: "nieuw" })
+      .select("id")
+      .single();
+    if (error) throw error;
+    requestId = data.id;
   }
-  return json.messages?.[0]?.id as string | undefined;
-}
 
-// TODO (taak 6/7): reden opslaan en Rick mailen.
-async function onHandover(conversationId: string, reason: HandoverReason, detail: string) {
-  console.log(`[whatsapp-webhook-meta] handover ${conversationId}: ${reason} (${detail})`);
-}
+  if (request.products.length) {
+    const { data: products } = await supabase.from("products").select("id, name").in("name", request.products);
+    if (products?.length) {
+      await supabase
+        .from("quote_request_items")
+        .insert(products.map((p) => ({ quote_request_id: requestId, product_id: p.id, quantity: 1 })));
+    }
+  }
 
-// TODO (taak 6/7): aanvraag opslaan (status nieuw) en Rick mailen.
-async function onRequestConfirmed(conversationId: string, turn: BotTurn) {
-  console.log(`[whatsapp-webhook-meta] request confirmed ${conversationId}:`, JSON.stringify(turn.request));
+  // The customer's WhatsApp profile name is a guess; the name they typed wins.
+  if (request.name && ctx.customerName !== request.name) {
+    await supabase.from("customers").update({ name: request.name }).eq("id", ctx.customerId);
+  }
+
+  console.log(`[whatsapp-webhook-meta] request saved ${requestId} for ${ctx.conversationId}`);
+  await notifyRequest(notifyConfig, ctx.phone, request);
 }
 
 type InboundMessage = { id: string; phone: string; body: string; profileName?: string };
 
 async function handleInboundMessage(msg: InboundMessage) {
   const { phone, body, profileName } = msg;
+
+  // Rick's own number gets the notifications; never treat him as a customer.
+  if (RICK_WHATSAPP_NUMBER && phone === RICK_WHATSAPP_NUMBER) {
+    console.log("[whatsapp-webhook-meta] message from Rick's number, ignored");
+    return;
+  }
 
   // Meta retries webhooks it considers failed; never answer the same message twice.
   const { data: duplicate } = await supabase
@@ -161,7 +230,7 @@ async function handleInboundMessage(msg: InboundMessage) {
 
   let { data: customer } = await supabase
     .from("customers")
-    .select("id")
+    .select("id, name")
     .or(`whatsapp_number.eq.${phone},phone.eq.${phone}`)
     .limit(1)
     .maybeSingle();
@@ -175,7 +244,7 @@ async function handleInboundMessage(msg: InboundMessage) {
         whatsapp_number: phone,
         source: "whatsapp",
       })
-      .select("id")
+      .select("id, name")
       .single();
     if (error) throw error;
     customer = newCustomer;
@@ -265,7 +334,7 @@ async function handleInboundMessage(msg: InboundMessage) {
     ? HANDOVER_MESSAGES[handoverReason]
     : ensureIntro(toWhatsappFormatting(turn!.reply), isFirstReply);
 
-  const messageId = await sendWhatsappReply(phone, reply);
+  const messageId = await sendText(meta, phone, reply);
 
   await supabase.from("messages").insert({
     conversation_id: conversation.id,
@@ -283,10 +352,16 @@ async function handleInboundMessage(msg: InboundMessage) {
     })
     .eq("id", conversation.id);
 
+  const ctx: ConversationContext = {
+    conversationId: conversation.id,
+    customerId: customer.id,
+    customerName: customer.name,
+    phone,
+  };
   if (handoverReason) {
-    await onHandover(conversation.id, handoverReason, handoverDetail);
+    await onHandover(ctx, handoverReason, handoverDetail, body);
   } else if (turn?.request_complete && turn.customer_confirmed) {
-    await onRequestConfirmed(conversation.id, turn);
+    await onRequestConfirmed(ctx, turn);
   }
 }
 

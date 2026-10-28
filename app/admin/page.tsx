@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import Image from "next/image"
-import { LogOut, Plus, Pencil, Trash2, Package, FolderOpen } from "lucide-react"
+import { LogOut, Plus, Pencil, Trash2, Package, FolderOpen, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel, FieldGroup, FieldError } from "@/components/ui/field"
@@ -22,6 +22,7 @@ import { useCategories } from "@/lib/use-categories"
 import { assetPath } from "@/lib/asset-path"
 import { ProductForm } from "@/components/admin/product-form"
 import { CategoryManager } from "@/components/admin/category-manager"
+import { ConversationInbox } from "@/components/admin/conversation-inbox"
 import { toast } from "sonner"
 
 export default function AdminPage() {
@@ -78,7 +79,7 @@ function AdminLogin() {
         Sonilux Admin
       </h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Log in om producten en categorieën te beheren.
+        Log in om producten, categorieën en gesprekken te beheren.
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -128,7 +129,7 @@ function AdminDashboard() {
     loading: categoriesLoading,
     refetch: refetchCategories,
   } = useCategories()
-  const [tab, setTab] = useState<"products" | "categories">("products")
+  const [tab, setTab] = useState<"products" | "categories" | "conversations">("products")
   const [formOpen, setFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
@@ -162,7 +163,7 @@ function AdminDashboard() {
             Sonilux Admin
           </h1>
           <p className="text-sm text-muted-foreground">
-            Beheer wat klanten op de website zien.
+            Beheer wat klanten op de website zien en volg de WhatsApp-gesprekken.
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
@@ -174,7 +175,7 @@ function AdminDashboard() {
       <div
         role="tablist"
         aria-label="Wat wil je beheren?"
-        className="mb-8 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-1.5"
+        className="mb-8 grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-1.5"
       >
         <Button
           role="tab"
@@ -196,9 +197,21 @@ function AdminDashboard() {
           <FolderOpen data-icon="inline-start" className="size-5" />
           Categorieën
         </Button>
+        <Button
+          role="tab"
+          aria-selected={tab === "conversations"}
+          variant={tab === "conversations" ? "default" : "ghost"}
+          className="h-12 text-base"
+          onClick={() => setTab("conversations")}
+        >
+          <MessageCircle data-icon="inline-start" className="size-5" />
+          Gesprekken
+        </Button>
       </div>
 
-      {tab === "categories" ? (
+      {tab === "conversations" ? (
+        <ConversationInbox />
+      ) : tab === "categories" ? (
         <CategoryManager
           categories={categories}
           products={products}
