@@ -34,7 +34,14 @@ export async function callGemini(
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:generateContent?key=${opts.apiKey}`,
-      { method: "POST", headers: { "content-type": "application/json" }, body },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        // A hanging Gemini call would otherwise block this request forever,
+        // leaving the customer without even the handover fallback.
+        signal: AbortSignal.timeout(20_000),
+      },
     );
 
     if (res.ok) {
