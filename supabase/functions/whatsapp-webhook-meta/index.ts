@@ -55,9 +55,6 @@ const RIK_WHATSAPP_NUMBER = Deno.env.get("RIK_WHATSAPP_NUMBER") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// TIJDELIJK: om te zien welk Gemini-model er echt draait.
-console.log("[config] GEMINI_MODEL =", GEMINI_MODEL);
-
 const MAX_HISTORY_MESSAGES = 20;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
