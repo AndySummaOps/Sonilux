@@ -210,11 +210,13 @@ type InboundMessage = { id: string; phone: string; body: string; profileName?: s
 async function handleInboundMessage(msg: InboundMessage) {
   const { phone, body, profileName } = msg;
 
-  // Rik's own number gets the notifications; never treat him as a customer.
-  if (RIK_WHATSAPP_NUMBER && phone === RIK_WHATSAPP_NUMBER) {
-    console.log("[whatsapp-webhook-meta] message from Rik's number, ignored");
-    return;
-  }
+  // Tijdelijk uitgeschakeld: tijdens het testen gebruikt Andy hetzelfde
+  // nummer om als klant te chatten én de meldingen te ontvangen. Zet dit
+  // terug aan zodra RIK_WHATSAPP_NUMBER echt Rik's eigen nummer is.
+  // if (RIK_WHATSAPP_NUMBER && phone === RIK_WHATSAPP_NUMBER) {
+  //   console.log("[whatsapp-webhook-meta] message from Rik's number, ignored");
+  //   return;
+  // }
 
   // Meta retries webhooks it considers failed; never answer the same message twice.
   const { data: duplicate } = await supabase
