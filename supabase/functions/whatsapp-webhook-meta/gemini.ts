@@ -22,10 +22,7 @@ export async function callGemini(
     contents,
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 1024,
-      // Gemini 2.5 counts "thinking" tokens against maxOutputTokens, which
-      // cut replies off mid-sentence. Short WhatsApp replies don't need it.
-      thinkingConfig: { thinkingBudget: 0 },
+      maxOutputTokens: 2048,
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
     },
@@ -40,7 +37,7 @@ export async function callGemini(
         body,
         // A hanging Gemini call would otherwise block this request forever,
         // leaving the customer without even the handover fallback.
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(50_000),
       },
     );
 
