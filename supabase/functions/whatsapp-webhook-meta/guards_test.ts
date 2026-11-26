@@ -8,9 +8,9 @@ Deno.test("inbound: vraag om een mens", () => {
   }
 });
 
-Deno.test("inbound: prijs, korting, garantie", () => {
+Deno.test("inbound: prijs, korting, garantie geven geen overdracht (bot handelt dit zelf af)", () => {
   for (const text of ["Wat kost de LED-bar?", "Wat zijn de prijzen?", "Krijg ik korting bij 2 stuks?", "Zit er garantie op?", "Is €200 genoeg?"]) {
-    assertEquals(detectInboundHandover(text), "prijs_korting_garantie", text);
+    assertEquals(detectInboundHandover(text), null, text);
   }
 });
 
@@ -27,8 +27,8 @@ Deno.test("inbound: gewone vragen geven geen overdracht", () => {
 });
 
 Deno.test("outbound: bedragen en beloftes worden tegengehouden", () => {
-  assertEquals(detectOutboundViolation("De bar kost €150 per dag."), "prijs_korting_garantie");
-  assertEquals(detectOutboundViolation("Je krijgt 10% korting!"), "prijs_korting_garantie");
+  assertEquals(detectOutboundViolation("De bar kost €150 per dag."), "weet_het_niet");
+  assertEquals(detectOutboundViolation("Je krijgt 10% korting!"), "weet_het_niet");
   assertEquals(detectOutboundViolation("Die datum is nog vrij."), "weet_het_niet");
   assertEquals(detectOutboundViolation("We leveren zaterdagochtend."), "weet_het_niet");
   assertEquals(detectOutboundViolation("Ik zet een voorlopige reservering klaar."), "weet_het_niet");
@@ -40,6 +40,10 @@ Deno.test("outbound: normaal antwoord mag door", () => {
     null,
   );
   assertEquals(detectOutboundViolation("Rik bekijkt je aanvraag en neemt contact met je op."), null);
+  assertEquals(
+    detectOutboundViolation("Qua prijzen stem ik dat graag af met Rik. Op welke datum is het feest?"),
+    null,
+  );
 });
 
 Deno.test("WhatsApp-opmaak", () => {

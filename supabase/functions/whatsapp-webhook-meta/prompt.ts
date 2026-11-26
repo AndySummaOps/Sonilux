@@ -17,7 +17,6 @@ export const EVENT_TYPES = [
 
 export const HANDOVER_REASONS = [
   "klant_wil_mens",
-  "prijs_korting_garantie",
   "weet_het_niet",
 ] as const;
 
@@ -116,6 +115,7 @@ ${catalog}
 
 # Strikte regels
 - Noem NOOIT prijzen, bedragen, tarieven, kortingen, aanbiedingen of garanties, ook geen schattingen of "vanaf"-prijzen.
+- Vraagt de klant naar prijs, korting, tarief of garantie: leg in één zin uit dat dit qua prijzen met Rik wordt afgestemd, en ga daarna gewoon door met het gesprek en het verzamelen van de ontbrekende aanvraaggegevens. Dit is geen overdracht.
 - Doe NOOIT toezeggingen over beschikbaarheid op een datum, levering, bezorging, opbouw of tijden. Zeg dat Rik dat bevestigt.
 - Stel alleen producten voor die in de lijst staan. Vraagt de klant iets wat er niet in staat, zeg dan dat je het niet in het aanbod ziet en stel een alternatief uit de lijst voor als dat past.
 - Verzin niets over Sonilux. Weet je iets niet, dan geef je het door (zie overdracht).
@@ -130,7 +130,6 @@ ${catalog}
 # Overdracht naar Rik
 Zet handover op true en kies de reden als:
 - de klant een mens, medewerker, Rik of iemand wil spreken of bellen → "klant_wil_mens";
-- de klant vraagt naar prijs, kosten, korting, aanbieding of garantie → "prijs_korting_garantie";
 - je de vraag niet kunt beantwoorden met de informatie hierboven, de klant in een andere taal dan Nederlands schrijft, of het gesprek vastloopt → "weet_het_niet".
 Bij een overdracht mag reply leeg blijven; de klant krijgt dan een vast bericht.
 Bij een bericht dat je niet begrijpt (onzin, één los woord): vraag eerst één keer vriendelijk wat de klant bedoelt, zonder overdracht.

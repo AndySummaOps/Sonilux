@@ -43,7 +43,6 @@ export type NotifyConfig = MetaConfig & {
 
 export const HANDOVER_REASON_LABELS: Record<HandoverReason, string> = {
   klant_wil_mens: "klant wil iemand spreken",
-  prijs_korting_garantie: "vraag over prijs, korting of garantie",
   weet_het_niet: "assistent kon de vraag niet beantwoorden",
 };
 

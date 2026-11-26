@@ -30,8 +30,8 @@ Deno.test("aanvraag: ontbrekende velden worden een streepje", () => {
 });
 
 Deno.test("overdracht: reden leesbaar en lang bericht ingekort", () => {
-  const params = handoverParams("Piet", "+31600000000", "prijs_korting_garantie", "x".repeat(500));
-  assertEquals(params[2], "vraag over prijs, korting of garantie");
+  const params = handoverParams("Piet", "+31600000000", "weet_het_niet", "x".repeat(500));
+  assertEquals(params[2], "assistent kon de vraag niet beantwoorden");
   assertEquals(params[3].length, 300);
   assertStringIncludes(handoverText(params), "Klant: Piet");
 });
